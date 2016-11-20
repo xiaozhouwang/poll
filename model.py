@@ -1,13 +1,14 @@
 '''
 main algorithm
 '''
-from math import exp, log, sqrt
+from math import exp, sqrt
 
-class poll(object):
-
-    def __init__(self, alpha, beta, L1, L2, D, interaction, loss_func):
+class POLL(object):
+    '''
+    abstract class. Should never be called directly.
+    '''
+    def __init__(self, alpha, beta, L1, L2, D, interaction):
         # parameters
-        self.loss_func = loss_func
         self.alpha = alpha
         self.beta = beta
         self.L1 = L1
@@ -20,10 +21,12 @@ class poll(object):
         # model
         # n: squared sum of past gradients
         # z: weights
-        # w: lazy weights
+        # w: regularized weights
+        # best_w: best w from epochs
         self.n = [0.] * D
         self.z = [0.] * D
-        self.w = {}
+        self.w = [0.] * D
+        self.best_w = [0.] * D
 
     def _indices(self, x_row):
         ''' A helper generator that yields the indices in x per row
@@ -48,53 +51,57 @@ class poll(object):
                     # one-hot encode interactions with hash trick
                     yield abs(hash(str(x_row[i]) + '_' + str(x_row[j]))) % self.D
 
-    def predict(self, x_row):
+    def get_weights(self):
+        '''
+        assign current w to best_w
+        '''
+        return self.w
 
-        # parameters
-        alpha = self.alpha
-        beta = self.beta
-        L1 = self.L1
-        L2 = self.L2
 
-        # model
-        n = self.n
-        z = self.z
-        w = {}
 
-        # wTx is the inner product of w and x
-        wTx = 0.
-        for i in self._indices(x_row):
-            sign = -1. if z[i] < 0 else 1.  # get sign of z[i]
+class LogLossLearner(POLL):
 
-            # build w on the fly using z and n, hence the name - lazy weights
-            # we are doing this at prediction instead of update time is because
-            # this allows us for not storing the complete w
-            if sign * z[i] <= L1:
-                # w[i] vanishes due to L1 regularization
-                w[i] = 0.
+    def __init__(self, alpha, beta, L1, L2, D, interaction):
+        super(LogLossLearner, self).__init__(alpha, beta, L1, L2, D, interaction)
+
+    def predict(self, x, outside_weights = None):
+        p = []
+        for x_row in x:
+            # parameters
+            if outside_weights:
+                w = outside_weights
             else:
-                # apply prediction time L1, L2 regularization to z and get w
-                w[i] = (sign * L1 - z[i]) / ((beta + sqrt(n[i])) / alpha + L2)
+                w = self.w
 
-            wTx += w[i]
+            # wTx is the inner product of w and x
+            wTx = 0.
+            for i in self._indices(x_row):
+                wTx += w[i]
 
-        # cache the current w for update stage
-        self.w = w
+            p.append(1. / (1. + exp(-1.*wTx)))
+        return p
 
-        # bounded sigmoid function, this is the probability estimation
-        return 1. / (1. + exp(-max(min(wTx, 1e5), -1e-5)))
-
-    def logloss_update(self, x, p, y):
+    def update(self, x, p, y):
         '''
         x, p, y are lists
         '''
-        # gradient under logloss
-        g = p - y
+        assert len(x) == len(p)
+        assert len(x) == len(y)
+        for idx in xrange(len(x)):
+            x_row, p_row, y_row = x[idx], p[idx], y[idx]
+            # gradient under logloss
+            g = p_row - y_row
 
-        # update z and n
-        for i in self._indices(x):
-            sigma = (sqrt(self.n[i] + g * g) - sqrt(self.n[i])) / self.alpha
-            self.z[i] += g - sigma * self.w[i]
-            self.n[i] += g * g
+            # update z and n
+            for i in self._indices(x_row):
+                sigma = (sqrt(self.n[i] + g * g) - sqrt(self.n[i])) / self.alpha
+                self.z[i] += g - sigma * self.w[i]
+                self.n[i] += g * g
+                # regularize
+                sign = -1. if self.z[i] < 0 else 1.
+                if sign * self.z[i] <= self.L1:
+                    self.w[i] = 0.
+                else:
+                    self.w[i] = (sign * self.L1 - self.z[i]) / ((self.beta + sqrt(self.n[i])) / self.alpha + self.L2)
 
 

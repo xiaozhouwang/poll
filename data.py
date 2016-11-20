@@ -20,7 +20,7 @@ def read_ffm(path, group_path = None):
         with open(path) as infile:
             for row in infile:
                 row = row.rstrip().split(" ")
-                y_row = int(row[0])
+                y_row = float(row[0])
                 x_row = []
                 for f in row[1:]:
                     x_row.append(f)
@@ -28,7 +28,7 @@ def read_ffm(path, group_path = None):
                 y.append(y_row)
                 count += 1
                 if count == current_size:
-                    yield idx, x, y
+                    yield current_size, x, y
                     if idx < len(group_size) - 1:
                         idx += 1
                         current_size = group_size[idx]
@@ -40,9 +40,9 @@ def read_ffm(path, group_path = None):
         with open(path) as infile:
             for e, row in enumerate(infile):
                 row = row.rstrip().split(" ")
-                y = int(row[0])
+                y = float(row[0])
                 x = []
                 for f in row[1:]:
                     x.append(f)
 
-                yield e, [x], [y]
+                yield 1, [x], [y]
