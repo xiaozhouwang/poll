@@ -2,7 +2,7 @@
 main algorithm
 '''
 from math import exp, sqrt
-
+import random
 class POLL(object):
     '''
     abstract class. Should never be called directly.
@@ -26,7 +26,6 @@ class POLL(object):
         self.n = [0.] * D
         self.z = [0.] * D
         self.w = [0.] * D
-        self.best_w = [0.] * D
 
     def _indices(self, x_row):
         ''' A helper generator that yields the indices in x per row
@@ -49,11 +48,15 @@ class POLL(object):
             for i in xrange(L):
                 for j in xrange(i+1, L):
                     # one-hot encode interactions with hash trick
-                    yield abs(hash(str(x_row[i]) + '_' + str(x_row[j]))) % self.D
+                    i_field = int(x_row[i].split(":")[0])
+                    j_field = int(x_row[j].split(":")[0])
+                    #if i_field != j_field and j_field in range(5):  # 0.67911028862
+                    if i_field != j_field and j_field in range(4):   # 0.681464539227
+                        yield abs(hash(str(x_row[i]) + '_' + str(x_row[j]))) % self.D
 
     def get_weights(self):
         '''
-        assign current w to best_w
+        get current weights
         '''
         return self.w
 

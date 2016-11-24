@@ -5,6 +5,7 @@ from datetime import datetime
 from model import LogLossLearner
 from data import read_ffm
 from evaluation import LogLoss, proba_apk
+from random import seed
 
 class FTRL(object):
 
@@ -46,7 +47,7 @@ class FTRL(object):
         return score / count if self.evalution == 'logloss' else score / i
 
     def train(self, train_path, train_group_path = None, validation_path = None, validation_group_path = None,
-              early_stop = False, epoch = 1):
+              early_stop = False, epoch = 1, random_state = 218):
         '''
         train_path: path to train file
         train_group_path: optional. path to train group size file
@@ -54,16 +55,23 @@ class FTRL(object):
         validation_group_path: path to validation group path
         early_stop: stop when validation score gets worse
         '''
+        seed(random_state)
         start = datetime.now()
         best_score = 100 if self.evalution == "logloss" else 0
         for e in xrange(epoch):
             count_processed_points = 0
+            map12 = 0  # track training map
+            logloss = 0.  # track training logloss
             for i, (t, x, y) in enumerate(read_ffm(train_path, train_group_path)):
                 count_processed_points += t
                 if i % 100000 == 10:
                     if self.verbose:
                         print "training data point %i..." % count_processed_points
+                        print "map12:", map12 / i
+                        print "logloss:", logloss / count_processed_points
                 p = self.learner.predict(x)
+                map12 += proba_apk(p, y, 12)
+                logloss += LogLoss(p, y)
                 self.learner.update(x, p, y)
 
             print('Epoch %d finished, elapsed time: %s' % (e, str(datetime.now() - start)))
