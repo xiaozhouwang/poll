@@ -108,3 +108,70 @@ class LogLossLearner(POLL):
                     self.w[i] = (sign * self.L1 - self.z[i]) / ((self.beta + sqrt(self.n[i])) / self.alpha + self.L2)
 
 
+class LambdaRankLearner(POLL):
+    '''
+    lambda rank optimizer
+    '''
+
+    def __init__(self, alpha, beta, L1, L2, D, interaction):
+        super(LambdaRankLearner, self).__init__(alpha, beta, L1, L2, D, interaction)
+
+    def predict(self, x, outside_weights=None):
+        p = []
+        for x_row in x:
+            # parameters
+            if outside_weights:
+                w = outside_weights
+            else:
+                w = self.w
+
+            # wTx is the inner product of w and x
+            wTx = 0.
+            for i in self._indices(x_row):
+                wTx += w[i]
+
+            #p.append(1. / (1. + exp(-1. * wTx))) # return probability
+            p.append(wTx)  # return raw score
+        return p
+
+
+    def update(self, x, p, y):
+        '''
+        x, p, y are lists
+        '''
+
+        positive_index = y.index(1)
+        s_pos = p[positive_index]
+        g = [0] * len(x)
+        for idx in xrange(len(x)):
+            if y[idx] != 1:
+                x_row, p_row, y_row = x[idx], p[idx], y[idx]
+                g[idx] = 1./ (1. + exp(s_pos - p_row))
+                # update z and n
+                for i in self._indices(x_row):
+                    sigma = (sqrt(self.n[i] + g[idx] * g[idx]) - sqrt(self.n[i])) / self.alpha
+                    self.z[i] += g[idx] - sigma * self.w[i]
+                    self.n[i] += g[idx] * g[idx]
+                    # regularize
+                    sign = -1. if self.z[i] < 0 else 1.
+                    if sign * self.z[i] <= self.L1:
+                        self.w[i] = 0.
+                    else:
+                        self.w[i] = (sign * self.L1 - self.z[i]) / (
+                        (self.beta + sqrt(self.n[i])) / self.alpha + self.L2)
+
+        # update the positive gradient
+        grad_pos = -1 * sum(g)
+        x_row, p_row, y_row = x[positive_index], p[positive_index], y[positive_index]
+        for i in self._indices(x_row):
+            sigma = (sqrt(self.n[i] + grad_pos * grad_pos) - sqrt(self.n[i])) / self.alpha
+            self.z[i] += grad_pos - sigma * self.w[i]
+            self.n[i] += grad_pos * grad_pos
+            # regularize
+            sign = -1. if self.z[i] < 0 else 1.
+            if sign * self.z[i] <= self.L1:
+                self.w[i] = 0.
+            else:
+                self.w[i] = (sign * self.L1 - self.z[i]) / (
+                    (self.beta + sqrt(self.n[i])) / self.alpha + self.L2)
+

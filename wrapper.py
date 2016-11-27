@@ -2,7 +2,7 @@
 model wrapper
 '''
 from datetime import datetime
-from model import LogLossLearner
+from model import LogLossLearner, LambdaRankLearner
 from data import read_ffm
 from evaluation import LogLoss, proba_apk
 from random import seed
@@ -10,7 +10,7 @@ from random import seed
 class FTRL(object):
 
     def __init__(self,alpha = 0.1, beta = 1., L1 = 1., L2 = 1., D = 2**24,
-           interaction = False, objective = 'logloss', evaluation = 'map@12', verbose = False):
+           interaction = False, objective = 'lambdarank', evaluation = 'map@12', verbose = False):
         '''
         alpha:  learning rate
         beta: smoothing parameter for adaptive learning rate
@@ -30,6 +30,8 @@ class FTRL(object):
         self.outside_weights = None
         if objective == 'logloss':
             self.learner = LogLossLearner(alpha, beta, L1, L2, D, interaction)
+        elif objective == 'lambdarank':
+            self.learner = LambdaRankLearner(alpha, beta, L1, L2, D, interaction)
         else:
             raise ValueError("objective function is invalid.")
 
@@ -47,7 +49,7 @@ class FTRL(object):
         return score / count if self.evalution == 'logloss' else score / i
 
     def train(self, train_path, train_group_path = None, validation_path = None, validation_group_path = None,
-              early_stop = False, epoch = 1, random_state = 218):
+              early_stop = False, epoch = 1, dropout = 0.4, random_state = 218):
         '''
         train_path: path to train file
         train_group_path: optional. path to train group size file
@@ -55,14 +57,14 @@ class FTRL(object):
         validation_group_path: path to validation group path
         early_stop: stop when validation score gets worse
         '''
-        seed(random_state)
         start = datetime.now()
         best_score = 100 if self.evalution == "logloss" else 0
         for e in xrange(epoch):
+            seed(random_state + e)
             count_processed_points = 0
             map12 = 0  # track training map
             logloss = 0.  # track training logloss
-            for i, (t, x, y) in enumerate(read_ffm(train_path, train_group_path)):
+            for i, (t, x, y) in enumerate(read_ffm(train_path, train_group_path, dropout=dropout)):
                 count_processed_points += t
                 if i % 100000 == 10:
                     if self.verbose:
