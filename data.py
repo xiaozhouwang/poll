@@ -2,7 +2,7 @@
 functions that read in data from path
 '''
 from random import random
-def read_ffm(path, group_path = None, dropout = 0.4):
+def read_ffm(path, group_path = None, dropout = 0.25):
     '''
     path: path to the file with libffm format
     group_path: path to the file with group size, default is None

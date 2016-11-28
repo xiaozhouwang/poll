@@ -2,12 +2,12 @@
 main algorithm
 '''
 from math import exp, sqrt
-import random
+from random import random
 class POLL(object):
     '''
     abstract class. Should never be called directly.
     '''
-    def __init__(self, alpha, beta, L1, L2, D, interaction):
+    def __init__(self, alpha, beta, L1, L2, D, interaction, interaction_dropout = 0.25):
         # parameters
         self.alpha = alpha
         self.beta = beta
@@ -17,6 +17,7 @@ class POLL(object):
         # feature related parameters
         self.D = D
         self.interaction = interaction
+        self.interaction_dropout = interaction_dropout
 
         # model
         # n: squared sum of past gradients
@@ -51,8 +52,9 @@ class POLL(object):
                     i_field = int(x_row[i].split(":")[0])
                     j_field = int(x_row[j].split(":")[0])
                     #if i_field != j_field and j_field in range(5):  # 0.67911028862
-                    if i_field != j_field and j_field in range(4):   # 0.681464539227
-                        yield abs(hash(str(x_row[i]) + '_' + str(x_row[j]))) % self.D
+                    if random() > self.interaction_dropout:
+                        if i_field != j_field and j_field in range(4):   # 0.681464539227
+                            yield abs(hash(str(x_row[i]) + '_' + str(x_row[j]))) % self.D
 
     def get_weights(self):
         '''
