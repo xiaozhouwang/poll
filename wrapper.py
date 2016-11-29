@@ -49,7 +49,7 @@ class FTRL(object):
         return score / count if self.evalution == 'logloss' else score / i
 
     def train(self, train_path, train_group_path = None, validation_path = None, validation_group_path = None,
-              early_stop = False, epoch = 1, dropout = 0.4, random_state = 218):
+              early_stop = False, epoch = 1, dropout = 0, random_state = 218):
         '''
         train_path: path to train file
         train_group_path: optional. path to train group size file

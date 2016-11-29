@@ -3,11 +3,12 @@ main algorithm
 '''
 from math import exp, sqrt
 from random import random
+from collections import defaultdict
 class POLL(object):
     '''
     abstract class. Should never be called directly.
     '''
-    def __init__(self, alpha, beta, L1, L2, D, interaction, interaction_dropout = 0.25):
+    def __init__(self, alpha, beta, L1, L2, D, interaction, interaction_dropout = 0):
         # parameters
         self.alpha = alpha
         self.beta = beta
@@ -52,7 +53,7 @@ class POLL(object):
                     i_field = int(x_row[i].split(":")[0])
                     j_field = int(x_row[j].split(":")[0])
                     #if i_field != j_field and j_field in range(5):  # 0.67911028862
-                    if random() > self.interaction_dropout:
+                    if random() >= self.interaction_dropout:
                         if i_field != j_field and j_field in range(4):   # 0.681464539227
                             yield abs(hash(str(x_row[i]) + '_' + str(x_row[j]))) % self.D
 
@@ -142,6 +143,8 @@ class LambdaRankLearner(POLL):
         x, p, y are lists
         '''
 
+        w_update = defaultdict()  # lazy update in the end
+
         positive_index = y.index(1)
         s_pos = p[positive_index]
         g = [0] * len(x)
@@ -157,9 +160,9 @@ class LambdaRankLearner(POLL):
                     # regularize
                     sign = -1. if self.z[i] < 0 else 1.
                     if sign * self.z[i] <= self.L1:
-                        self.w[i] = 0.
+                        w_update[i] = 0.
                     else:
-                        self.w[i] = (sign * self.L1 - self.z[i]) / (
+                        w_update[i] = (sign * self.L1 - self.z[i]) / (
                         (self.beta + sqrt(self.n[i])) / self.alpha + self.L2)
 
         # update the positive gradient
@@ -172,8 +175,12 @@ class LambdaRankLearner(POLL):
             # regularize
             sign = -1. if self.z[i] < 0 else 1.
             if sign * self.z[i] <= self.L1:
-                self.w[i] = 0.
+                w_update[i] = 0.
             else:
-                self.w[i] = (sign * self.L1 - self.z[i]) / (
+                w_update[i] = (sign * self.L1 - self.z[i]) / (
                     (self.beta + sqrt(self.n[i])) / self.alpha + self.L2)
+
+        # update the weights
+        for k, v in w_update.iteritems():
+            self.w[k] = v
 

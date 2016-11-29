@@ -2,7 +2,7 @@
 functions that read in data from path
 '''
 from random import random
-def read_ffm(path, group_path = None, dropout = 0.25):
+def read_ffm(path, group_path = None, dropout = 0):
     '''
     path: path to the file with libffm format
     group_path: path to the file with group size, default is None
@@ -28,7 +28,7 @@ def read_ffm(path, group_path = None, dropout = 0.25):
                 y.append(y_row)
                 count += 1
                 if count == current_size:
-                    if random() > dropout:
+                    if random() >= dropout:
                         yield current_size, x, y
                     if idx < len(group_size) - 1:
                         idx += 1
@@ -45,5 +45,5 @@ def read_ffm(path, group_path = None, dropout = 0.25):
                 x = []
                 for f in row[1:]:
                     x.append(f)
-                if random() > dropout:
+                if random() >= dropout:
                     yield 1, [x], [y]
